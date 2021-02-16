@@ -22,6 +22,7 @@ jobs:
       DOCKER_IMAGE_TAG: "docker.pkg.github.com/${GITHUB_REPOSITORY}/${GITHUB_REF##*/}"
       # https://github.com/actions/starter-workflows/issues/68#issuecomment-524665878
       PUBLIC_DOCKER_REPO: echo ${GITHUB_REPOSITORY} | sed 's/-docker//g' | sed 's/docker-//g'
+      GIHUB_IMAGE_REPO_NAME: $(echo ${GITHUB_REPOSITORY} | awk -F"/" '{ print $2 }')
 
     steps:
       - uses: actions/checkout@v2
@@ -31,14 +32,14 @@ jobs:
 
       - name: Build docker image
         # https://stackoverflow.com/questions/55756372/when-using-buildkit-with-docker-how-do-i-see-the-output-of-run-commands/55759337#55759337
-        run: DOCKER_BUILDKIT=1 docker build --progress=plain -t docker.pkg.github.com/${GITHUB_REPOSITORY}/${GITHUB_REF##*/} .
+        run: DOCKER_BUILDKIT=1 docker build --progress=plain -t docker.pkg.github.com/${GITHUB_REPOSITORY}/${GIHUB_IMAGE_REPO_NAME}:${GITHUB_SHA} .
 
-      - name: Tag Docker image - Sha
-        run: docker tag docker.pkg.github.com/${GITHUB_REPOSITORY}/${GITHUB_REF##*/} docker.pkg.github.com/${GITHUB_REPOSITORY}/${GITHUB_REF##*/}:${GITHUB_SHA}
+      - name: Tag with the branch name
+        run: docker tag docker.pkg.github.com/${GITHUB_REPOSITORY}/${GIHUB_IMAGE_REPO_NAME}:${GITHUB_SHA} docker.pkg.github.com/${GITHUB_REPOSITORY}/${GIHUB_IMAGE_REPO_NAME}:${GITHUB_REF##*/}
 
       - name: Tag the latest image
         if: endsWith(github.ref, '/main')
-        run: docker tag docker.pkg.github.com/${GITHUB_REPOSITORY}/${GITHUB_REF##*/} docker.pkg.github.com/${GITHUB_REPOSITORY}/latest
+        run: docker tag docker.pkg.github.com/${GITHUB_REPOSITORY}/${GIHUB_IMAGE_REPO_NAME}:${GITHUB_SHA} docker.pkg.github.com/${GITHUB_REPOSITORY}/${GIHUB_IMAGE_REPO_NAME}:latest
 
       # https://github.com/marcellodesales/cloner/packages?package_type=Docker
       - name: Login to GitHub Packages Docker Registry
@@ -50,16 +51,16 @@ jobs:
 
       # Publish the Branch Docker Images to Github Container Registry
       - name: Push latest Docker Image
-        run: docker push docker.pkg.github.com/${GITHUB_REPOSITORY}/${GITHUB_REF##*/}
+        run: docker push docker.pkg.github.com/${GITHUB_REPOSITORY}/${GIHUB_IMAGE_REPO_NAME}:${GITHUB_SHA}
 
       # Publish the Sha  Docker Images to Github Container Registry
       - name: Push Docker Image
-        run: docker push docker.pkg.github.com/${GITHUB_REPOSITORY}/${GITHUB_REF##*/}:${GITHUB_SHA}
+        run: docker push docker.pkg.github.com/${GITHUB_REPOSITORY}/${GIHUB_IMAGE_REPO_NAME}:${GITHUB_REF##*/}
 
        # Publish the Sha  Docker Images to Github Container Registry
       - name: Push Docker Image latest from master
         if: endsWith(github.ref, '/main')
-        run: docker push docker.pkg.github.com/${GITHUB_REPOSITORY}/latest
+        run: docker push docker.pkg.github.com/${GITHUB_REPOSITORY}/${GIHUB_IMAGE_REPO_NAME}:latest
 
       - name: Docker image to push
         run: echo "Image repo is '${PUBLIC_DOCKER_REPO}'"
@@ -73,15 +74,15 @@ jobs:
           password: ${{ secrets.REGISTRY_DOCKERHUB_TOKEN }}
 
       - name: Tag the latest image in the public repo
-        run: docker tag docker.pkg.github.com/${GITHUB_REPOSITORY}/${GITHUB_REF##*/} ${PUBLIC_DOCKER_REPO}:${GITHUB_SHA}
+        run: docker tag docker.pkg.github.com/${GITHUB_REPOSITORY}/${GIHUB_IMAGE_REPO_NAME}:${GITHUB_SHA} ${PUBLIC_DOCKER_REPO}:${GITHUB_SHA}
 
       - name: Tag the latest image in the public repo
-        run: docker tag docker.pkg.github.com/${GITHUB_REPOSITORY}/${GITHUB_REF##*/} ${PUBLIC_DOCKER_REPO}:${GITHUB_REF##*/}
+        run: docker tag docker.pkg.github.com/${GITHUB_REPOSITORY}/${GIHUB_IMAGE_REPO_NAME}:${GITHUB_SHA} ${PUBLIC_DOCKER_REPO}:${GITHUB_REF##*/}
 
        # Latest version of image
       - name: Docker Push the latest image
         if: endsWith(github.ref, '/main')
-        run: docker tag docker.pkg.github.com/${GITHUB_REPOSITORY}/${GITHUB_REF##*/} ${PUBLIC_DOCKER_REPO}
+        run: docker tag docker.pkg.github.com/${GITHUB_REPOSITORY}/${GIHUB_IMAGE_REPO_NAME}:${GITHUB_SHA} ${PUBLIC_DOCKER_REPO}
 
       - name: Tag the latest image in the public repo
         run: docker push ${PUBLIC_DOCKER_REPO}:${GITHUB_SHA}
